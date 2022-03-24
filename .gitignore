@@ -1,0 +1,14 @@
+*.pyc
+__pycache__
+.DS_Store
+.git
+.idea
+.vscode
+.env
+venv
+.env
+db.sqlite3
+web/utils/scraper/.ipynb_checkpoints/
+web/utils/scraper/test.ipynb
+desktop_app/chrome-data
+desktop_app/geckodriver.log
