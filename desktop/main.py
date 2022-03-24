@@ -15,7 +15,7 @@ from selenium.common.exceptions import (
     TimeoutException,
     UnexpectedAlertPresentException,
     InvalidArgumentException,
-    WebDriverException
+    WebDriverException,
 )
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -86,6 +86,26 @@ class WhatsappSenderApp(Tk):
         Tk.__init__(self)
         self.title("Whatsapp Sender App")
         self.geometry("600x400")
+
+        menubar = Menu(self)
+        self.config(menu=menubar)  # set menubar
+        file_menu = Menu(menubar, tearoff=0)
+
+        # add menu items to the File menu
+        file_menu.add_command(
+            label="Qeydiyyat",
+            command=self.register,
+        )
+        menubar.add_cascade(label="Qeydiyyat", menu=file_menu)
+
+        # help_menu = Menu(
+        #     menubar,
+        #     tearoff=0,
+        # )
+        # help_menu.add_command(label="Welcome")
+        # help_menu.add_command(label="About...")
+        # menubar.add_cascade(label="Help", menu=help_menu, underline=0)
+
         self.main_container = Frame(self)
         self.main_container.pack(fill="both", expand=True)
         self.message_input = TextWithPlaceholder(
@@ -134,11 +154,28 @@ class WhatsappSenderApp(Tk):
         # )
         # self.cancel_button.pack(side="top", fill="both", expand=True)
         self.output_area = Text(
-            self, wrap="word", padx=10, pady=10, bg="black", fg="yellow", 
+            self,
+            wrap="word",
+            padx=10,
+            pady=10,
+            bg="black",
+            fg="yellow",
         )
         self.output_area.pack(side="top", fill="both", expand=True)
         self.output_area.tag_configure("stderr", foreground="#b22222")
         self.output_area.insert("end", "message" + "\n")
+
+    def register(self):
+        """
+        send user's mac id to admin
+        """
+        mac_addr = get_mac_addr()
+        driver = self.get_chrome_driver()
+        self.send_whatsapp_message("+994709051195", mac_addr, driver)
+        driver.quit()
+        time.sleep(1)
+        messagebox.showinfo("Tebrikler", "Sizin melumatınız ugurla gönderildi.")
+
     def cancel(self):
         self.send_button.configure(state="normal")
         try:
@@ -159,7 +196,7 @@ class WhatsappSenderApp(Tk):
     def show_lisence_error():
         messagebox.showerror(
             "Lisenziya Xetasi",
-            "Lisenziyaniz yoxdur!\nEger varsa programi baglayib yeniden acin ve ya internet elaqenizi yoxlayin",
+            "Lisenziyaniz yoxdur!\nEger varsa programi baglayib yeniden acin ve ya internet elaqenizi yoxlayin, Qeydiyyat ucun sol ustdeki menyudan qeydiyyat kecin.",
         )
 
     def _print(self, message, widget):
@@ -194,7 +231,7 @@ class WhatsappSenderApp(Tk):
             sys.exit(1)
         except WebDriverException as e:
             print(e)
-    
+
     def get_message_input(self):
         return self.message_input.get("1.0", "end-1c") or "Bos mesaj"
 
@@ -292,10 +329,10 @@ class WhatsappSenderApp(Tk):
             print(api_response)
             if api_response["message"] == "success":
                 PHONE_NUMBERS_JSON = api_response["data"]
-                print('before getting driver')
+                print("before getting driver")
                 self.driver = self.get_chrome_driver()
-                print('after getting driver')
-    
+                print("after getting driver")
+
                 try:
                     for i in PHONE_NUMBERS_JSON:
                         self.send_whatsapp_message(
@@ -312,7 +349,7 @@ class WhatsappSenderApp(Tk):
                 try:
                     self.driver.quit()
                 except AttributeError:
-                    print('there is no driver to quit')
+                    print("there is no driver to quit")
                 messagebox.showinfo(result["message"], result["message"])
                 self.send_button.configure(state="normal")
                 return result
@@ -325,5 +362,6 @@ class WhatsappSenderApp(Tk):
 
 if __name__ == "__main__":
     print("starting")
+
     app = WhatsappSenderApp()
     app.mainloop()
