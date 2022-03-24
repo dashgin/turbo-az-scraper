@@ -1,4 +1,4 @@
-from uuid import getnode as get_mac
+from uuid import UUID, getnode as get_mac
 
 DEBUG = False
 
@@ -9,7 +9,7 @@ WHATSAPP_MESSAGE_INPUT_XPATH = (
 
 def get_mac_addr():
     mac = get_mac()
-    return ":".join(("%012X" % mac)[i : i + 2] for i in range(0, 12, 2))
+    return UUID(int = mac).hex[-12:]
 
 
 def get_url(phone, message):
