@@ -6,4 +6,8 @@ gunicorn==20.1.0
 django-cors-headers==3.11.0
 dj-database-url
 bs4
+<<<<<<< HEAD
 requests
+=======
+requests
+>>>>>>> 9395a14780137ec68c92a757e269c440b94f0e23
