@@ -286,7 +286,7 @@ class WhatsappSenderApp(Tk):
 
         try:
             api_response = requests.post(
-                url="http://127.0.0.1:8000/api/cars/all/",
+                url="https://auto-sender.herokuapp.com/api/cars/all/",
                 data={"mac_id": get_mac_addr()},
             ).json()
             print(api_response)
@@ -295,7 +295,7 @@ class WhatsappSenderApp(Tk):
                 print('before getting driver')
                 self.driver = self.get_chrome_driver()
                 print('after getting driver')
-
+    
                 try:
                     for i in PHONE_NUMBERS_JSON:
                         self.send_whatsapp_message(
