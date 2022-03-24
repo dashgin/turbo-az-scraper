@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-from logging import PlaceHolder
+from pathlib import Path
 import requests
 import sys
 import time
@@ -16,6 +15,7 @@ from selenium.common.exceptions import (
     TimeoutException,
     UnexpectedAlertPresentException,
     InvalidArgumentException,
+    WebDriverException
 )
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -134,11 +134,11 @@ class WhatsappSenderApp(Tk):
         # )
         # self.cancel_button.pack(side="top", fill="both", expand=True)
         self.output_area = Text(
-            self, wrap="word", padx=10, pady=10, bg="black", fg="yellow"
+            self, wrap="word", padx=10, pady=10, bg="black", fg="yellow", 
         )
         self.output_area.pack(side="top", fill="both", expand=True)
         self.output_area.tag_configure("stderr", foreground="#b22222")
-
+        self.output_area.insert("end", "message" + "\n")
     def cancel(self):
         self.send_button.configure(state="normal")
         try:
@@ -172,7 +172,8 @@ class WhatsappSenderApp(Tk):
 
     def get_chrome_driver(self):
         options = Options()
-        options.add_argument("--user-data-dir=chrome-data")
+        BASE_DIR = Path(__file__).resolve().parent
+        options.add_argument(f"--user-data-dir={BASE_DIR / 'chrome-data-selenium' }")
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)
 
@@ -191,7 +192,9 @@ class WhatsappSenderApp(Tk):
             )
             self._print("Chrome driver is not ready", self.output_area)
             sys.exit(1)
-
+        except WebDriverException as e:
+            print(e)
+    
     def get_message_input(self):
         return self.message_input.get("1.0", "end-1c") or "Bos mesaj"
 
@@ -286,9 +289,12 @@ class WhatsappSenderApp(Tk):
                 url="http://127.0.0.1:8000/api/cars/all/",
                 data={"mac_id": get_mac_addr()},
             ).json()
+            print(api_response)
             if api_response["message"] == "success":
                 PHONE_NUMBERS_JSON = api_response["data"]
+                print('before getting driver')
                 self.driver = self.get_chrome_driver()
+                print('after getting driver')
 
                 try:
                     for i in PHONE_NUMBERS_JSON:
@@ -303,7 +309,10 @@ class WhatsappSenderApp(Tk):
                     result = {"message": "error"}
                     self._print(f"Error: {e}", self.output_area)
 
-                self.driver.quit()
+                try:
+                    self.driver.quit()
+                except AttributeError:
+                    print('there is no driver to quit')
                 messagebox.showinfo(result["message"], result["message"])
                 self.send_button.configure(state="normal")
                 return result
@@ -315,5 +324,6 @@ class WhatsappSenderApp(Tk):
 
 
 if __name__ == "__main__":
+    print("starting")
     app = WhatsappSenderApp()
     app.mainloop()
