@@ -10,5 +10,5 @@ venv
 db.sqlite3
 web/utils/scraper/.ipynb_checkpoints/
 web/utils/scraper/test.ipynb
-desktop_app/chrome-data
+**/chrome-data/**
 desktop_app/geckodriver.log

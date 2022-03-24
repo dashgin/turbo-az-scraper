@@ -1,24 +1,25 @@
 #!/usr/bin/env python
-import sys
-from tkinter import messagebox
+from logging import PlaceHolder
 import requests
+import sys
 import time
 import threading
 from tkinter import *
+from tkinter import messagebox
 
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import (
     NoSuchElementException,
     TimeoutException,
     UnexpectedAlertPresentException,
+    InvalidArgumentException,
 )
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait
-
-from selenium import webdriver
-from selenium.common.exceptions import InvalidArgumentException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+
 from webdriver_manager.chrome import ChromeDriverManager
 
 from utils import (
@@ -38,6 +39,48 @@ class Task(threading.Thread):
             self.start()
 
 
+class TextWithPlaceholder(Text):
+    """
+    tkinter's text widget with placeholder
+    """
+
+    def __init__(self, parent, placeholder, *args, **kwargs):
+        self.placeholder = placeholder
+        super().__init__(parent, *args, **kwargs)
+        self.insert_placeholder()
+        self.bind("<FocusIn>", self.on_focus_in)
+        self.bind("<FocusOut>", self.on_focus_out)
+
+    def insert_placeholder(self):
+        """insert the placeholder into text box"""
+        lbl = Label(
+            self,
+            text=self.placeholder,
+            compound="left",
+            fg="darkgray",
+            bg=self.cget("bg"),
+            font=(None, 10, "bold"),
+        )
+        self.window_create("end", window=lbl)
+        self._placeholder = self.window_names()[0]
+
+    def on_focus_in(self, event):
+        try:
+            # check whether the placeholder exists
+            item = self.window_cget(1.0, "window")
+            if item == self._placeholder:
+                # remove the placeholder
+                self.delete(1.0, "end")
+        except:
+            # placeholder not found, do nothing
+            pass
+
+    def on_focus_out(self, event):
+        if self.get(1.0, "end-1c") == "":
+            # nothing input, so add back the placeholder
+            self.insert_placeholder()
+
+
 class WhatsappSenderApp(Tk):
     def __init__(self):
         Tk.__init__(self)
@@ -45,7 +88,13 @@ class WhatsappSenderApp(Tk):
         self.geometry("600x400")
         self.main_container = Frame(self)
         self.main_container.pack(fill="both", expand=True)
-        self.message_input = Text(self.main_container, height=5, padx=10, pady=10, bg="gray", fg="white")
+        self.message_input = TextWithPlaceholder(
+            self.main_container,
+            height=5,
+            padx=10,
+            pady=10,
+            placeholder="Mesajınızı buraya yazın",
+        )
         self.message_input.pack(fill="both", expand=True)
 
         self.send_button = Button(
@@ -59,12 +108,52 @@ class WhatsappSenderApp(Tk):
             state="normal",
         )
 
-        self.send_button.pack(side="top", fill="both", expand=True)
+        self.send_button.pack(side=LEFT, fill=X, expand=True)
+
+        self.clear_output_button = Button(
+            self.main_container,
+            text="Clear output",
+            command=self.clear_output,
+            fg="white",
+            bg="gray",
+            font="Helvetica 12 bold italic",
+            height=1,
+            state="normal",
+        )
+        self.clear_output_button.pack(side=RIGHT)
+
+        # self.cancel_button = Button(
+        #     self.main_container,
+        #     text="Cancel",
+        #     command=self.cancel,
+        #     fg="white",
+        #     bg="red",
+        #     font="Helvetica 12 bold italic",
+        #     height=1,
+        #     state="normal",
+        # )
+        # self.cancel_button.pack(side="top", fill="both", expand=True)
         self.output_area = Text(
             self, wrap="word", padx=10, pady=10, bg="black", fg="yellow"
         )
         self.output_area.pack(side="top", fill="both", expand=True)
         self.output_area.tag_configure("stderr", foreground="#b22222")
+
+    def cancel(self):
+        self.send_button.configure(state="normal")
+        try:
+            self.driver.quit()
+        except Exception:
+            pass
+        self.destroy()
+
+    def clear_output(self):
+        try:
+            self.output_area.configure(state="normal")
+            self.output_area.delete("1.0", "end")
+            self.output_area.configure(state="disabled")
+        except Exception:
+            pass
 
     @staticmethod
     def show_lisence_error():
@@ -114,11 +203,19 @@ class WhatsappSenderApp(Tk):
         while True:
             try:
                 time.sleep(3)
+                # try:
                 waiter.until(
                     ec.presence_of_element_located(
                         (By.XPATH, "//canvas[@aria-label='Scan me!']")
                     )
                 )
+                # except Exception as e:
+                #     self._print(
+                #         "Waiting for QR code to appear", self.output_area
+                #     )
+                #     self._print(e, self.output_area)
+                #     continue
+
                 wait_counter += 1
                 if wait_counter % 1000 == 0:
                     self._print("Waiting for user to log in...", self.output_area)
@@ -189,33 +286,32 @@ class WhatsappSenderApp(Tk):
                 url="http://127.0.0.1:8000/api/cars/all/",
                 data={"mac_id": get_mac_addr()},
             ).json()
-        except Exception as e:
-            api_response = {"message": "error"}
-            print(e)
+            if api_response["message"] == "success":
+                PHONE_NUMBERS_JSON = api_response["data"]
+                self.driver = self.get_chrome_driver()
 
-        if api_response["message"] == "success":
-            PHONE_NUMBERS_JSON = api_response["data"]
-            driver = self.get_chrome_driver()
+                try:
+                    for i in PHONE_NUMBERS_JSON:
+                        self.send_whatsapp_message(
+                            phone=i["phone"],
+                            message=self.get_message_input(),
+                            driver=self.driver,
+                        )
+                    result = {"message": "success"}
 
-            try:
-                for i in PHONE_NUMBERS_JSON:
-                    self.send_whatsapp_message(
-                        phone=i["phone"],
-                        message=self.get_message_input(),
-                        driver=driver,
-                    )
-                result = {"message": "success"}
-            except Exception as e:
-                result = {"message": "error"}
-                self._print(f"Error: {e}", self.output_area)
+                except Exception as e:
+                    result = {"message": "error"}
+                    self._print(f"Error: {e}", self.output_area)
 
-            driver.quit()
-            messagebox.showinfo(result["message"], result["message"])
+                self.driver.quit()
+                messagebox.showinfo(result["message"], result["message"])
+                self.send_button.configure(state="normal")
+                return result
+
+        except requests.exceptions.ConnectionError:
+            self.show_lisence_error()
             self.send_button.configure(state="normal")
-            return result
-
-        self.show_lisence_error()
-        self.send_button.configure(state="normal")
+            return {"message": "error"}
 
 
 if __name__ == "__main__":
